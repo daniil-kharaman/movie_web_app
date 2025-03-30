@@ -7,11 +7,20 @@
     {% endblock %}
   </head>
   <body>
-    {% with messages = get_flashed_messages() %}
+    {% with messages = get_flashed_messages(category_filter=["info"]) %}
         {% if messages %}
-        <ul class=flashes>
+        <ul class=flashes-info>
         {% for message in messages %}
         <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+    {% with errors = get_flashed_messages(category_filter=["error"]) %}
+        {% if errors %}
+        <ul class=flashes-error>
+        {% for error in errors %}
+        <li>{{ error }}</li>
         {% endfor %}
         </ul>
         {% endif %}

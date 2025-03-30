@@ -10,6 +10,11 @@
         <div class="user">
             <a href="/users/{{user.id}}" class="user-link">{{user.name}}</a>
         </div>
+        <div class="delete-user">
+            <form action="/users/{{user.id}}" method="post">
+                <input type="submit" value="Delete user">
+            </form>
+        </div>
     </div>
     {% endfor %}
 {% endblock %}

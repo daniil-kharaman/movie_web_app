@@ -55,3 +55,8 @@ class DataManagerInterface(ABC):
     @abstractmethod
     def movie_in_database(self, *args):
         pass
+
+
+    @abstractmethod
+    def check_database_connection(self):
+        pass

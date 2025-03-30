@@ -5,6 +5,8 @@ import os
 from dotenv import load_dotenv
 import requests
 from flask_migrate import Migrate
+from sqlalchemy import exc
+
 
 load_dotenv()
 app = Flask(__name__)
@@ -12,7 +14,12 @@ app.secret_key = os.getenv('SECRET_KEY')
 API_KEY = os.getenv('API_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = data_manager.db_file_name
 migrate = Migrate(app, db)
-db.init_app(app)
+try:
+    db.init_app(app)
+except exc.ArgumentError as e:
+    print(f"Impossible to connect to the database: {e}")
+    quit()
+
 
 
 def validate_username(username: str):
@@ -123,6 +130,13 @@ def get_data_api(movie_input, user_id):
         flash('Something went wrong, try again later.', 'error')
 
 
+@app.errorhandler(exc.OperationalError)
+def operational_error(e):
+    flash('Technical works, try again later!', 'error')
+    print(f"Impossible to connect to the database: {e}")
+    return render_template('error.html'), 500
+
+
 @app.get('/')
 #TODO create home page
 def home():
@@ -139,6 +153,13 @@ def list_all_users():
 def user_movies(user_id):
     movies = data_manager.get_user_movies(user_id)
     return render_template('user_movies.html', movies=movies)
+
+
+@app.post('/users/<user_id>')
+def delete_user_from_db(user_id):
+    data_manager.delete_user(user_id)
+    flash('User is successfully deleted.', 'info')
+    return redirect(url_for('list_all_users'))
 
 
 @app.route('/add_user', methods=['GET', 'POST'])
@@ -161,7 +182,7 @@ def add_movie_to_db(user_id):
                 title, year, rating, poster, director = movie_to_add
                 data_manager.add_movie(title=title, year=year, rating=rating,
                                        poster=poster, director=director, user_id=user_id)
-                flash('Movie is successfully added.')
+                flash('Movie is successfully added.', 'info')
     return render_template('add_movie.html')
 
 
@@ -178,7 +199,7 @@ def update_movie_in_db(user_id, movie_id):
             title, director, year, rating, poster = movie_to_update
             data_manager.update_movie(movie_id=movie_id, title=title, director=director,
                                       year=year, rating=rating, poster=poster)
-            flash('Movie is successfully updated.')
+            flash('Movie is successfully updated.', 'info')
     movie = data_manager.get_movie_by_id(movie_id)
     return render_template('update_movie.html', movie=movie)
 
@@ -186,9 +207,17 @@ def update_movie_in_db(user_id, movie_id):
 @app.post('/users/<user_id>/delete_movie/<movie_id>')
 def delete_movie_from_db(user_id, movie_id):
     data_manager.delete_movie(movie_id)
-    flash('Movie is successfully deleted.')
+    flash('Movie is successfully deleted.', 'info')
     return redirect(url_for('user_movies', user_id=user_id))
 
 
+
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    with app.app_context():
+        if data_manager.check_database_connection():
+            app.run(debug=True)
+        else:
+            exit(1)
+

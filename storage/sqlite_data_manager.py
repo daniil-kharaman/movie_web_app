@@ -1,15 +1,37 @@
 from flask_sqlalchemy import SQLAlchemy
 from storage.data_manager_interface import DataManagerInterface
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, text, exc
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import List, Optional
+import os
 
-DATABASE_URL = 'sqlite:////Users/daniilkharaman/python/movieweb_app/database/data.db'
+db_path = '/Users/daniilkharaman/python/movieweb_app/database/data.db'
+DATABASE_URL = f"sqlite:///{db_path}"
 
 class SQLiteDataManager(DataManagerInterface):
     def __init__(self, db_file_name):
         self.db_file_name = db_file_name
         self.db = SQLAlchemy()
+
+
+    def check_database_connection(self):
+        """Check if a connection to the database can be established.
+
+            Verifies the existence of the database file and attempts a simple query to test the connection.
+
+            Returns:
+                bool: True if connection is successful, False otherwise.
+        """
+        if not os.path.exists(db_path):
+            print(f"Database file was not found: {db_path}")
+            return False
+        try:
+            self.db.session.execute(text('SELECT 1'))
+            print('Connection established')
+            return True
+        except (exc.OperationalError, Exception) as e:
+            print(f"Impossible to connect with the database: {e}")
+            return False
 
 
     def get_all_users(self):
@@ -25,7 +47,6 @@ class SQLiteDataManager(DataManagerInterface):
 
 
     def add_user(self, name):
-        #check exception if user name is not unique
         user = UserAccount(
             name=name,
         )
