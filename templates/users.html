@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block content %}
+    <h1>Users</h1>
+    <a href="/add_user" class="add-user-link">Add a new user</a><br><br>
+    {% for user in users %}
+    <div class="user-item">
+        <div class="user">
+            <a href="/users/{{user.id}}" class="user-link">{{user.name}}</a>
+        </div>
+    </div>
+    {% endfor %}
+{% endblock %}
+{% block footer %}
+    {{ super() }}
+{% endblock %}

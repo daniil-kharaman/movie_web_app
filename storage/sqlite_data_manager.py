@@ -20,7 +20,12 @@ class SQLiteDataManager(DataManagerInterface):
         return self.db.session.execute(self.db.select(Movie).where(Movie.user_id == user_id)).scalars()
 
 
+    def get_movie_by_id(self, movie_id):
+        return self.db.session.get(Movie, movie_id)
+
+
     def add_user(self, name):
+        #check exception if user name is not unique
         user = UserAccount(
             name=name,
         )
@@ -40,12 +45,13 @@ class SQLiteDataManager(DataManagerInterface):
         self.db.session.commit()
 
 
-    def add_movie(self, title, director, year, rating, user_id):
+    def add_movie(self, title, user_id, director=None, year=None, rating=None, poster=None):
         movie = Movie(
             title=title,
             director=director,
             year=year,
             rating=rating,
+            poster=poster,
             user_id=user_id
         )
         self.db.session.add(movie)
@@ -58,17 +64,27 @@ class SQLiteDataManager(DataManagerInterface):
         self.db.session.commit()
 
 
-    def update_movie(self, movie_id, title=None, director=None, year=None, rating=None):
+    def update_movie(self, movie_id, title, director, year, rating, poster):
         movie = self.db.session.get(Movie, movie_id)
-        if title:
-            movie.title = title
-        if director:
-            movie.director = director
-        if year:
-            movie.year = year
-        if rating:
-            movie.rating = rating
+        movie.title = title
+        movie.director = director
+        movie.year = year
+        movie.rating = rating
+        movie.poster = poster
         self.db.session.commit()
+
+
+    def user_in_database(self, user_name):
+        if not self.db.session.execute(self.db.select(UserAccount).where(UserAccount.name == user_name)).all():
+            return False
+        return True
+
+
+    def movie_in_database(self, movie_title, user_id):
+        if not self.db.session.execute(self.db.select(Movie).where(Movie.title == movie_title, Movie.user_id == user_id)).all():
+            return False
+        return True
+
 
 data_manager = SQLiteDataManager(DATABASE_URL)
 db = data_manager.db
@@ -88,7 +104,8 @@ class Movie(db.Model):
     title: Mapped[str]
     director: Mapped[Optional[str]]
     year: Mapped[Optional[int]]
-    rating: Mapped[Optional[int]]
+    rating: Mapped[Optional[float]]
+    poster: Mapped[Optional[str]]
     user_id: Mapped[int] = mapped_column(ForeignKey('user_account.id'))
     user : Mapped['UserAccount'] = relationship(back_populates='movies')
 

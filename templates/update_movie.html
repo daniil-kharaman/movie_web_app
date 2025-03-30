@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block content %}
+    <div class="container form-container">
+      <h2>Update Movie</h2>
+      <form action="{{movie.id}}" method="post">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value="{{movie.title}}" required>
+        <label for="director">Director</label>
+        <input type="text" id="director" name="director"
+               {% if movie.director %} value="{{movie.director}}" {% else %} value="">
+        {% endif %}
+        <label for="year">Year</label>
+        <input type="number" id="year" name="year"
+               {% if movie.year %} value="{{movie.year}}" {% else %} value="">
+        {% endif %}
+        <label for="rating">Rating</label>
+        <input type="number" id="rating" name="rating"
+               {% if movie.rating %} value="{{movie.rating}}" {% else %} value="">
+        {% endif %}
+        <label for="poster">Poster</label>
+        <input type="text" id="poster" name="poster"
+               {% if movie.poster %}value="{{movie.poster}}" {% else %} value="">
+        {% endif %}
+        <br><br>
+        <input type="submit" value="Update">
+      </form>
+    </div>
+{% endblock %}
+{% block footer %}
+    {{ super() }}
+{% endblock %}
