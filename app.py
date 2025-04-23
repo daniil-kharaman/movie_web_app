@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, flash, redirect, url_for
-from storage.sqlite_data_manager import data_manager, db
+from storage.database import data_manager
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -14,10 +14,11 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
 API_KEY = os.getenv('API_KEY')
+
 app.config['SQLALCHEMY_DATABASE_URI'] = data_manager.db_file_name
-migrate = Migrate(app, db)
+migrate = Migrate(app, data_manager.db)
 try:
-    db.init_app(app)
+    data_manager.db.init_app(app)
 except exc.ArgumentError as e:
     print(f"Impossible to connect to the database: {e}")
     quit()
@@ -411,6 +412,9 @@ def ai_recommendations(user_id):
             flash('Sorry, nothing was found. Try again!', 'error')
         context = {'user_id': user_id, 'recommendations': recommendations, 'mood': mood}
         return render_template('recommended_movies.html', **context)
+
+
+
 
 
 if __name__ == '__main__':
