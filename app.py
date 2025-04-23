@@ -41,22 +41,27 @@ def validate_username(username: str):
     return True
 
 
-def validate_movie_data(title, director=None, year=None, rating=None, poster=None):
-
-    """Validates the movie data by checking that the title is non-empty and within limits, and that optional fields (director, year, rating, poster) are properly formatted."""
-
+def validate_title(title):
     if not title or title.isspace():
         flash('Title must not be blank!', 'error')
         return False
     if title and len(title) > 100:
         flash('Maximum 100 characters are allowed!', 'error')
         return False
+    return True
+
+
+def validate_director(director):
     if director and director.isspace():
         flash('Only spaces are not allowed', 'error')
         return False
     if director and len(director) > 100:
         flash('Maximum 100 characters are allowed!', 'error')
         return False
+    return True
+
+
+def validate_year(year):
     if year:
         try:
             year = int(year)
@@ -69,6 +74,11 @@ def validate_movie_data(title, director=None, year=None, rating=None, poster=Non
             print(f"Wrong format of the year: {e}")
             flash('Wrong format of the year!', 'error')
             return False
+    return True
+
+
+
+def validate_rating(rating):
     if rating:
         try:
             rating = float(rating)
@@ -79,9 +89,25 @@ def validate_movie_data(title, director=None, year=None, rating=None, poster=Non
             print(f"Wrong format of the rating: {e}")
             flash('Wrong format of the rating!', 'error')
             return False
+    return True
+
+
+def validate_poster(poster):
     if poster and poster.isspace():
         flash('Only spaces are not allowed', 'error')
         return False
+    return True
+
+
+def validate_movie_data(title, director=None, year=None, rating=None, poster=None):
+
+    """Validates the movie data by checking that the title is non-empty and within limits,
+    and that optional fields (director, year, rating, poster) are properly formatted."""
+
+    validation = (validate_title(title), validate_director(director), validate_year(year), validate_rating(rating),
+                  validate_poster(poster))
+    if False in validation:
+        return None
     return title, director, year, rating, poster
 
 
@@ -111,6 +137,49 @@ def validate_data_api(func):
     return wrapper
 
 
+def validate_title_api(title, user_id):
+    if not title or title == 'N/A':
+        raise ValueError('Impossible to add the movie!')
+    if data_manager.movie_in_database(title, user_id):
+        raise ValueError('The movie is already in the database.')
+
+
+def validate_year_api(year):
+    if not year or year == 'N/A':
+        year = None
+    if '–' in year:
+        year = year.split('–')[0]
+        year = ''.join(year)
+    if year:
+        year = int(year)
+    return year
+
+
+def validate_rating_api(rating):
+    if not rating or rating == 'N/A':
+        rating = None
+    if rating:
+        rating = float(rating)
+    return rating
+
+
+def validate_poster_api(poster):
+    if not poster or poster == 'N/A':
+        poster = None
+    return poster
+
+
+def validate_director_api(director):
+    if not director or director == 'N/A':
+        director = None
+    return director
+
+
+def validate_response(response):
+    if response == {"Response": "False", "Error": "Movie not found!"}:
+        raise ValueError("Such movie doesn't exist!")
+
+
 @validate_data_api
 def get_data_api(movie_input, user_id):
 
@@ -120,38 +189,17 @@ def get_data_api(movie_input, user_id):
     endpoint = f"http://www.omdbapi.com/?apikey={API_KEY}&t={movie_input}"
     response = requests.get(endpoint)
     parsed_response = response.json()
-    if parsed_response == {"Response": "False", "Error": "Movie not found!"}:
-        raise ValueError("Such movie doesn't exist!")
-
+    validate_response(parsed_response)
     title = parsed_response['Title']
-    if not title or title == 'N/A':
-        raise ValueError('Impossible to add the movie!')
-    if data_manager.movie_in_database(title, user_id):
-        raise ValueError('The movie is already in the database.')
-
+    validate_title_api(title, user_id)
     year = parsed_response['Year']
-    if not year or year == 'N/A':
-        year = None
-    if '–' in year:
-        year = year.split('–')[0]
-        year = ''.join(year)
-    if year:
-        year = int(year)
-
+    year = validate_year_api(year)
     rating = parsed_response['imdbRating']
-    if not rating or rating == 'N/A':
-        rating = None
-    if rating:
-        rating = float(rating)
-
+    rating = validate_rating_api(rating)
     poster = parsed_response['Poster']
-    if not poster or poster == 'N/A':
-        poster = None
-
+    poster = validate_poster_api(poster)
     director = parsed_response['Director']
-    if not director or director == 'N/A':
-        director = None
-
+    director = validate_director_api(director)
     return title, year, rating, poster, director
 
 
@@ -192,13 +240,14 @@ def processing_add_movie(user_id):
 
     if request.method == 'POST':
         title = request.form.get('title')
-        if validate_movie_data(title):
+        if validate_title(title):
             movie_to_add = get_data_api(title, user_id)
             if movie_to_add:
                 title, year, rating, poster, director = movie_to_add
                 data_manager.add_movie(title=title, year=year, rating=rating,
                                        poster=poster, director=director, user_id=user_id)
                 flash('Movie is successfully added.', 'info')
+                return redirect(url_for('user_movies', user_id=user_id))
 
 
 def process_recommendations_chat(user_id, chat):
@@ -255,7 +304,7 @@ def user_movies(user_id):
     return render_template('user_movies.html', movies=movies)
 
 
-@app.post('/users/<user_id>')
+@app.post('/delete_user/<user_id>')
 def delete_user_from_db(user_id):
 
     """Deletes a specified user from the database and redirects to the list of users with a success message."""
@@ -275,6 +324,7 @@ def add_user_to_db():
         if validate_username(user_name):
             data_manager.add_user(user_name)
             flash('User is successfully added', 'info')
+            return redirect(url_for('list_all_users'))
     return render_template('add_user.html')
 
 
@@ -283,8 +333,9 @@ def add_movie_to_db(user_id):
 
     """Processes the addition of a new movie for a given user by validating input
     and fetching movie data, then renders the add movie page."""
+    if request.method == 'POST':
 
-    processing_add_movie(user_id)
+        return processing_add_movie(user_id)
     return render_template('add_movie.html', user_id=user_id)
 
 
