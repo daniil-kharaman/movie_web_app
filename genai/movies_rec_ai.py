@@ -12,7 +12,8 @@ client = genai.Client(api_key=api_key)
 
 def get_instructions(file_path):
 
-    """Reads and returns instructions for GenAI from the specified file. Returns None if the file is not found."""
+    """Reads and returns instructions for GenAI from the specified file.
+    Returns None if the file is not found."""
 
     try:
         with open(file_path, 'r') as file:

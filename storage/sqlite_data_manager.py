@@ -14,7 +14,8 @@ class SQLiteDataManager(DataManagerInterface):
 
     def check_database_connection(self):
 
-        """Checks if the database file exists and verifies that a connection to the database can be established."""
+        """Checks if the database file exists and verifies
+        that a connection to the database can be established."""
 
         if not os.path.exists(self.db_path):
             print(f"Database file was not found: {self.db_path}")
@@ -39,7 +40,8 @@ class SQLiteDataManager(DataManagerInterface):
 
         """Fetches all movies associated with a given user ID from the database."""
 
-        return self.db.session.execute(self.db.select(self.movie_model).where(self.movie_model.user_id == user_id)).scalars()
+        return self.db.session.execute(self.db.select(self.movie_model)\
+                                       .where(self.movie_model.user_id == user_id)).scalars()
 
 
     def get_movie_by_id(self, movie_id):
@@ -105,7 +107,8 @@ class SQLiteDataManager(DataManagerInterface):
 
     def update_movie(self, movie_id, title, director, year, rating, poster):
 
-        """Updates an existing movie record with new information including title, director, year, rating, and poster."""
+        """Updates an existing movie record with new information
+        including title, director, year, rating, and poster."""
 
         movie = self.db.session.get(self.movie_model, movie_id)
         movie.title = title
@@ -120,7 +123,8 @@ class SQLiteDataManager(DataManagerInterface):
 
         """Checks if a user with the specified name exists in the database."""
 
-        if not self.db.session.execute(self.db.select(self.user_model).where(self.user_model.name == user_name)).all():
+        if not self.db.session.execute(self.db.select(self.user_model)\
+                                               .where(self.user_model.name == user_name)).all():
             return False
         return True
 
@@ -129,8 +133,8 @@ class SQLiteDataManager(DataManagerInterface):
 
         """Checks if a movie with the specified title exists for the given user ID in the database."""
 
-        if not self.db.session.execute(self.db.select(self.movie_model).\
-                                               where(self.movie_model.title == movie_title,
+        if not self.db.session.execute(self.db.select(self.movie_model)\
+                                               .where(self.movie_model.title == movie_title,
                                                      self.movie_model.user_id == user_id)).all():
             return False
         return True

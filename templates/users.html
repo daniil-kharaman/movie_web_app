@@ -16,6 +16,9 @@
           <a href="/users/{{user.id}}" class="user-link">{{user.name}}</a>
         </div>
         <div class="delete-user">
+          <form action="/users/{{user.id}}" method="get">
+            <button type="submit" class="btn btn-small btn-danger">Movies</button>
+          </form>
           <form action="/delete_user/{{user.id}}" method="post">
             <button type="submit" class="btn btn-small btn-danger">Delete user</button>
           </form>

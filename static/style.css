@@ -374,6 +374,16 @@ button[type="submit"]:active {
   margin-bottom: 15px;
   border-radius: 8px;
   transition: background-color 0.2s;
+  gap: 10px;
+}
+
+.user {
+  flex: 1;
+}
+
+.delete-user {
+  display: flex;
+  gap: 10px;
 }
 
 .user-item:hover {

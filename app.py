@@ -9,7 +9,6 @@ from sqlalchemy import exc
 from genai.movies_rec_ai import get_instructions, open_chat, get_chat_ai_recommendations
 import functools
 
-
 load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY')
@@ -28,7 +27,8 @@ users_chats = dict()
 
 def validate_username(username: str):
 
-    """Validates the username by ensuring it is non-empty, within 30 characters, and not already in the database."""
+    """Validates the username by ensuring it is non-empty,
+    within 30 characters, and not already in the database."""
 
     if not username or username.isspace():
         flash('Name must not be blank!', 'error')
@@ -43,6 +43,12 @@ def validate_username(username: str):
 
 
 def validate_title(title):
+
+    """
+    Validates movie title - must not be blank or exceed 100 characters.
+    Returns True if valid, False otherwise with appropriate flash message.
+    """
+
     if not title or title.isspace():
         flash('Title must not be blank!', 'error')
         return False
@@ -53,6 +59,12 @@ def validate_title(title):
 
 
 def validate_director(director):
+
+    """
+    Validates director name - must not be only whitespace or exceed 100 characters.
+    Returns True if valid, False otherwise with appropriate flash message.
+    """
+
     if director and director.isspace():
         flash('Only spaces are not allowed', 'error')
         return False
@@ -63,13 +75,19 @@ def validate_director(director):
 
 
 def validate_year(year):
+
+    """
+    Validates movie release year - must be between 1890 and current year.
+    Returns True if valid or empty, False otherwise with appropriate flash message.
+    """
+
     if year:
+        min_year = 1890
+        max_year = datetime.now().year
         try:
             year = int(year)
-            min_year = 1890
-            max_year = datetime.now().year
             if year < min_year or year > max_year:
-                flash('Wrong format of the year!', 'error')
+                flash(f"Wrong format of the year! Minimum: {min_year}, Maximum: {max_year}", 'error')
                 return False
         except (ValueError, Exception) as e:
             print(f"Wrong format of the year: {e}")
@@ -78,8 +96,13 @@ def validate_year(year):
     return True
 
 
-
 def validate_rating(rating):
+
+    """
+    Validates movie rating - must be a number between 0 and 10.
+    Returns True if valid or empty, False otherwise with appropriate flash message.
+    """
+
     if rating:
         try:
             rating = float(rating)
@@ -94,6 +117,12 @@ def validate_rating(rating):
 
 
 def validate_poster(poster):
+
+    """
+    Validates poster URL - must not consist of only whitespace.
+    Returns True if valid, False otherwise with appropriate flash message.
+    """
+
     if poster and poster.isspace():
         flash('Only spaces are not allowed', 'error')
         return False
@@ -102,14 +131,21 @@ def validate_poster(poster):
 
 def validate_movie_data(title, director=None, year=None, rating=None, poster=None):
 
-    """Validates the movie data by checking that the title is non-empty and within limits,
-    and that optional fields (director, year, rating, poster) are properly formatted."""
+    """
+    Validates all movie data fields using individual validation functions.
+    Returns a list of validated data with empty fields converted to None if all validations pass,
+    or None if any validation fails.
+    """
 
     validation = (validate_title(title), validate_director(director), validate_year(year), validate_rating(rating),
                   validate_poster(poster))
     if False in validation:
         return None
-    return title, director, year, rating, poster
+    data = [title, director, year, rating, poster]
+    for index, item in enumerate(data):
+        if not item:
+            data[index] = None
+    return data
 
 
 def validate_data_api(func):
@@ -139,6 +175,12 @@ def validate_data_api(func):
 
 
 def validate_title_api(title, user_id):
+
+    """
+    Validates movie title for API operations.
+    Raises ValueError if title is empty/N/A or if movie already exists in database for the user.
+    """
+
     if not title or title == 'N/A':
         raise ValueError('Impossible to add the movie!')
     if data_manager.movie_in_database(title, user_id):
@@ -146,6 +188,13 @@ def validate_title_api(title, user_id):
 
 
 def validate_year_api(year):
+
+    """
+    Validates and normalizes movie year from API data.
+    Handles 'N/A' values, range years (using first year), and converts to integer.
+    Returns None for empty/invalid years or the parsed integer year.
+    """
+
     if not year or year == 'N/A':
         year = None
     if '–' in year:
@@ -157,6 +206,13 @@ def validate_year_api(year):
 
 
 def validate_rating_api(rating):
+
+    """
+    Validates and normalizes movie rating from API data.
+    Handles 'N/A' values and converts to float.
+    Returns None for empty/invalid ratings or the parsed float rating.
+    """
+
     if not rating or rating == 'N/A':
         rating = None
     if rating:
@@ -165,20 +221,62 @@ def validate_rating_api(rating):
 
 
 def validate_poster_api(poster):
+
+    """
+    Validates and normalizes movie poster URL from API data.
+    Handles 'N/A' values, returning None for empty/invalid poster URLs.
+    """
+
     if not poster or poster == 'N/A':
         poster = None
     return poster
 
 
 def validate_director_api(director):
+
+    """
+    Validates and normalizes movie director from API data.
+    Handles 'N/A' values, returning None for empty/invalid director names.
+    """
+
     if not director or director == 'N/A':
         director = None
     return director
 
 
 def validate_response(response):
+
+    """
+    Validates API response object.
+    Raises ValueError if movie was not found in the external API.
+    """
+
     if response == {"Response": "False", "Error": "Movie not found!"}:
         raise ValueError("Such movie doesn't exist!")
+
+
+def db_connection_handler(func):
+
+    """
+    Decorator that handles database connection errors.
+    Catches operational and argument errors, displays appropriate error messages,
+    and returns a 500 error page when database operations fail.
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            data = func(*args, **kwargs)
+            return data
+        except (exc.OperationalError, exc.ArgumentError) as e:
+            print(f'The following error has occurred: {e}')
+            flash('Problem with database, try again later.', 'error')
+            return render_template('error.html'), 500
+        except Exception as e:
+            print(f'The following error has occurred: {e}')
+            flash('Something went wrong, try again later.', 'error')
+            return render_template('error.html'), 500
+    return wrapper
 
 
 @validate_data_api
@@ -207,7 +305,8 @@ def get_data_api(movie_input, user_id):
 @validate_data_api
 def get_data_api_chat(movie_input):
 
-    """Fetches the movie poster from the OMDb API for a given movie input, intended for chat-based recommendations."""
+    """Fetches the movie poster from the OMDb API for a given movie input,
+    intended for chat-based recommendations."""
 
     endpoint = f"http://www.omdbapi.com/?apikey={API_KEY}&t={movie_input}"
     response = requests.get(endpoint)
@@ -237,7 +336,8 @@ def get_rec_movies_with_poster(rec_movies):
 
 def processing_add_movie(user_id):
 
-    """Processes a POST request to add a movie for a user by validating input data and adding the movie using API data."""
+    """Processes a POST request to add a movie for a user by validating input data
+    and adding the movie using API data."""
 
     if request.method == 'POST':
         title = request.form.get('title')
@@ -253,7 +353,8 @@ def processing_add_movie(user_id):
 
 def process_recommendations_chat(user_id, chat):
 
-    """Processes chat-based movie recommendations by using the user's movies and mood input to generate and enhance recommendations with poster data."""
+    """Processes chat-based movie recommendations by using the user's movies
+    and mood input to generate and enhance recommendations with poster data."""
 
     movies = data_manager.get_user_movies(user_id)
     movies = [movie.title for movie in movies]
@@ -274,7 +375,7 @@ def operational_error(e):
 
     """Handles operational database errors by flashing an error message and rendering an error page."""
 
-    flash('Technical works, try again later!', 'error')
+    flash('Something went wrong, try again later!', 'error')
     print(f"Impossible to connect to the database: {e}")
     return render_template('error.html'), 500
 
@@ -288,6 +389,7 @@ def home():
 
 
 @app.get('/users')
+@db_connection_handler
 def list_all_users():
 
     """Retrieves all users from the database and renders the users list page."""
@@ -297,15 +399,16 @@ def list_all_users():
 
 
 @app.get('/users/<user_id>/')
+@db_connection_handler
 def user_movies(user_id):
 
     """Displays the movies associated with a specific user by rendering the user's movies page."""
-
     movies = data_manager.get_user_movies(user_id)
     return render_template('user_movies.html', movies=movies)
 
 
 @app.post('/delete_user/<user_id>')
+@db_connection_handler
 def delete_user_from_db(user_id):
 
     """Deletes a specified user from the database and redirects to the list of users with a success message."""
@@ -316,6 +419,7 @@ def delete_user_from_db(user_id):
 
 
 @app.route('/add_user', methods=['GET', 'POST'])
+@db_connection_handler
 def add_user_to_db():
 
     """Handles requests to add a new user by validating the username and adding the user to the database."""
@@ -330,17 +434,19 @@ def add_user_to_db():
 
 
 @app.route('/users/<user_id>/add_movie', methods=['GET', 'POST'])
+@db_connection_handler
 def add_movie_to_db(user_id):
 
     """Processes the addition of a new movie for a given user by validating input
     and fetching movie data, then renders the add movie page."""
-    if request.method == 'POST':
 
+    if request.method == 'POST':
         return processing_add_movie(user_id)
     return render_template('add_movie.html', user_id=user_id)
 
 
 @app.route('/users/<user_id>/add_movie_rec', methods=['GET', 'POST'])
+@db_connection_handler
 def add_rec_movie_to_db(user_id):
 
     """Processes the addition of a recommended movie for a given user by validating input and fetching movie data,
@@ -351,6 +457,7 @@ def add_rec_movie_to_db(user_id):
 
 
 @app.route('/users/<user_id>/update_movie/<movie_id>', methods=['GET', 'POST'])
+@db_connection_handler
 def update_movie_in_db(user_id, movie_id):
 
     """Handles movie update requests by validating new movie data, updating the database record,
@@ -365,6 +472,8 @@ def update_movie_in_db(user_id, movie_id):
         movie_to_update = validate_movie_data(title, director, year, rating, poster)
         if movie_to_update:
             title, director, year, rating, poster = movie_to_update
+            print(year)
+            print(rating)
             data_manager.update_movie(movie_id=movie_id, title=title, director=director,
                                       year=year, rating=rating, poster=poster)
             flash('Movie is successfully updated.', 'info')
@@ -374,9 +483,11 @@ def update_movie_in_db(user_id, movie_id):
 
 
 @app.post('/users/<user_id>/delete_movie/<movie_id>')
+@db_connection_handler
 def delete_movie_from_db(user_id, movie_id):
 
-    """Deletes a specified movie from the database and redirects to the user's movie list with a success message."""
+    """Deletes a specified movie from the database
+    and redirects to the user's movie list with a success message."""
 
     data_manager.delete_movie(movie_id)
     flash('Movie is successfully deleted.', 'info')
@@ -384,6 +495,7 @@ def delete_movie_from_db(user_id, movie_id):
 
 
 @app.route('/users/<user_id>/get_recommendations', methods=['GET', 'POST'])
+@db_connection_handler
 def ai_recommendations(user_id):
 
     """Handles AI movie recommendation requests by generating recommendations
@@ -412,9 +524,6 @@ def ai_recommendations(user_id):
             flash('Sorry, nothing was found. Try again!', 'error')
         context = {'user_id': user_id, 'recommendations': recommendations, 'mood': mood}
         return render_template('recommended_movies.html', **context)
-
-
-
 
 
 if __name__ == '__main__':

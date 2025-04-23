@@ -6,14 +6,13 @@ db = SQLAlchemy()
 model = db.Model
 
 
-
 class UserAccount(model):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(unique=True)
     movies: Mapped[List['Movie']] = relationship(back_populates='user', cascade='all, delete-orphan')
 
     def __repr__(self):
-        return f"UserAccount(id={UserAccount.id}, name={UserAccount.name})"
+        return f"UserAccount(id={self.id}, name={self.name})"
 
 
 class Movie(model):
@@ -27,5 +26,5 @@ class Movie(model):
     user : Mapped['UserAccount'] = relationship(back_populates='movies')
 
     def __repr__(self):
-        return (f"Movie(id={Movie.id}, title={Movie.title}, director={Movie.director},"
-                f"year={Movie.year}, rating={Movie.rating})")
+        return (f"Movie(id={self.id}, title={self.title}, director={self.director},"
+                f"year={self.year}, rating={self.rating})")
