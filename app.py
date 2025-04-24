@@ -348,7 +348,7 @@ def processing_add_movie(user_id):
                 data_manager.add_movie(title=title, year=year, rating=rating,
                                        poster=poster, director=director, user_id=user_id)
                 flash('Movie is successfully added.', 'info')
-                return redirect(url_for('user_movies', user_id=user_id))
+                return True
 
 
 def process_recommendations_chat(user_id, chat):
@@ -441,7 +441,9 @@ def add_movie_to_db(user_id):
     and fetching movie data, then renders the add movie page."""
 
     if request.method == 'POST':
-        return processing_add_movie(user_id)
+        operation =processing_add_movie(user_id)
+        if operation:
+            return redirect(url_for('user_movies', user_id=user_id))
     return render_template('add_movie.html', user_id=user_id)
 
 
